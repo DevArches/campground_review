@@ -14,14 +14,14 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
 const helmet = require('helmet');
-const MongoDBStore = require('connect-mongo');
-const dbUrl = process.env.DB_URL || 'mongodb://localhost:27017/yelp-camp';
-
 const mongoSanitize = require('express-mongo-sanitize');
-
 const userRoutes = require('./routes/users');
 const campgroundRoutes = require('./routes/campgrounds');
 const reviewRoutes = require('./routes/reviews');
+
+const MongoStore = require('connect-mongo');
+
+const dbUrl = process.env.DB_URL || 'mongodb://localhost:27017/yelp-camp';
 
 mongoose.connect(dbUrl, {
   useNewUrlParser: true,
@@ -37,6 +37,7 @@ db.once('open', () => {
 });
 
 const app = express();
+const secret = process.env.SECRET || 'thisshouldbeabettersecret!';
 
 app.engine('ejs', ejsMate);
 app.set('view engine', 'ejs');
@@ -50,19 +51,20 @@ app.use(
     replaceWith: '_',
   })
 );
-const secret = process.env.secret || 'thisshouldbeabettersecret!';
-const store = new MongoDBStore({
-  url: dbUrl,
-  secret,
-  touchAfter: 24 * 60 * 60,
-});
 
-store.on('error', function (e) {
-  console.log('SESSION STORE ERROR', e);
-});
+app.use(
+  session({
+    store: MongoStore.create({
+      mongoUrl: dbUrl,
+      secret,
+      touchAfter: 24 * 60 * 60,
+    }),
+    resave: true,
+    saveUninitialized: true,
+  })
+);
 
 const sessionConfig = {
-  store,
   name: 'session',
   secret,
   resave: false,
@@ -155,6 +157,7 @@ app.use((err, req, res, next) => {
   res.status(statusCode).render('error', { err });
 });
 
-app.listen(3000, () => {
-  console.log('Serving on port 3000');
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Serving on port ${port}`);
 });
