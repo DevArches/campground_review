@@ -54,6 +54,7 @@ app.use(
 
 app.use(
   session({
+    secret,
     store: MongoStore.create({
       mongoUrl: dbUrl,
       secret,
